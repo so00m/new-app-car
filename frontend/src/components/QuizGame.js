@@ -3,56 +3,198 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
-import { questions, raceTrackLength, moveDistance } from '../mock';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const QuizGame = ({ selectedCar, onRestart }) => {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [score, setScore] = useState(0);
-  const [position, setPosition] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
+  const [gameSession, setGameSession] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [playerName, setPlayerName] = useState('');
+  const [showNameInput, setShowNameInput] = useState(true);
 
-  const handleAnswerClick = (answerIndex) => {
-    if (selectedAnswer !== null) return;
-    
-    setSelectedAnswer(answerIndex);
-    const correct = answerIndex === questions[currentQuestion].correct;
-    setIsCorrect(correct);
-    setShowResult(true);
-    
-    if (correct) {
-      setScore(score + 1);
-      setPosition(prev => Math.min(prev + moveDistance, raceTrackLength));
-    }
-    
-    setTimeout(() => {
-      if (currentQuestion < questions.length - 1) {
-        setCurrentQuestion(currentQuestion + 1);
-        setSelectedAnswer(null);
-        setShowResult(false);
-        setIsCorrect(null);
-      } else {
-        setGameOver(true);
+  const startGame = async () => {
+    try {
+      if (!playerName.trim()) {
+        setError('Please enter your name to start the game!');
+        return;
       }
-    }, 2000);
+
+      setLoading(true);
+      
+      // Create game session
+      const sessionResponse = await axios.post(`${API}/game-session`, {
+        player_name: playerName.trim(),
+        selected_car_id: selectedCar.id
+      });
+      
+      const session = sessionResponse.data;
+      setGameSession(session);
+      
+      // Get questions for this session
+      const questionsResponse = await axios.get(`${API}/questions?limit=10`);
+      setQuestions(questionsResponse.data);
+      
+      // Get first question
+      if (questionsResponse.data.length > 0) {
+        setCurrentQuestion(questionsResponse.data[0]);
+        setCurrentQuestionIndex(0);
+      }
+      
+      setShowNameInput(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error starting game:', err);
+      setError('Failed to start game. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswerClick = async (answerIndex) => {
+    if (selectedAnswer !== null || !gameSession) return;
+    
+    try {
+      setSelectedAnswer(answerIndex);
+      
+      // Submit answer to backend
+      const response = await axios.put(`${API}/game-session/${gameSession.id}/answer`, {
+        question_index: currentQuestionIndex,
+        selected_answer: answerIndex
+      });
+      
+      const result = response.data;
+      setIsCorrect(result.is_correct);
+      setShowResult(true);
+      
+      // Update game session with new data
+      setGameSession(prev => ({
+        ...prev,
+        score: result.score,
+        position: result.current_position,
+        is_completed: result.is_completed,
+        is_winner: result.is_winner
+      }));
+      
+      setTimeout(() => {
+        if (!result.is_completed && currentQuestionIndex < questions.length - 1) {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setCurrentQuestion(questions[currentQuestionIndex + 1]);
+          setSelectedAnswer(null);
+          setShowResult(false);
+          setIsCorrect(null);
+        } else {
+          // Game completed
+          setGameSession(prev => ({
+            ...prev,
+            is_completed: true,
+            is_winner: result.is_winner
+          }));
+        }
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      setError('Failed to submit answer. Please try again.');
+    }
   };
 
   const resetGame = () => {
-    setCurrentQuestion(0);
-    setScore(0);
-    setPosition(0);
-    setGameOver(false);
+    setGameSession(null);
+    setCurrentQuestion(null);
+    setQuestions([]);
+    setCurrentQuestionIndex(0);
     setSelectedAnswer(null);
     setShowResult(false);
     setIsCorrect(null);
+    setShowNameInput(true);
+    setPlayerName('');
+    setError(null);
   };
 
-  const progressPercentage = (position / raceTrackLength) * 100;
-  const isWinner = position >= raceTrackLength;
+  // Show name input
+  if (showNameInput) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md backdrop-blur-sm bg-white/95 shadow-2xl border-0">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-4">{selectedCar.emoji}</div>
+            <CardTitle className="text-2xl font-bold" style={{ color: selectedCar.color }}>
+              Ready to race with {selectedCar.name}?
+            </CardTitle>
+            <CardDescription className="text-lg">
+              Enter your name to start the quiz!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <input
+                type="text"
+                placeholder="Enter your name..."
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                onKeyPress={(e) => e.key === 'Enter' && startGame()}
+              />
+            </div>
+            {error && (
+              <div className="text-red-500 text-center">{error}</div>
+            )}
+            <Button 
+              onClick={startGame}
+              disabled={loading}
+              className="w-full h-12 text-lg bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+            >
+              {loading ? 'Starting Game...' : '🏁 Start Racing!'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  if (gameOver) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 flex items-center justify-center">
+        <div className="text-white text-2xl">Loading game... 🏎️</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="text-white text-xl mb-4">{error}</div>
+          <Button onClick={resetGame} className="bg-white text-red-600 hover:bg-gray-100">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameSession || !currentQuestion) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 flex items-center justify-center">
+        <div className="text-white text-2xl">Preparing quiz... 🧠</div>
+      </div>
+    );
+  }
+
+  const progressPercentage = gameSession.position;
+  const isGameCompleted = gameSession.is_completed;
+  const isWinner = gameSession.is_winner;
+
+  if (isGameCompleted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-600 via-blue-600 to-purple-600 flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl backdrop-blur-sm bg-white/95 shadow-2xl border-0">
@@ -69,14 +211,14 @@ const QuizGame = ({ selectedCar, onRestart }) => {
           </CardHeader>
           <CardContent className="text-center space-y-6">
             <div className="bg-gray-100 rounded-lg p-6 space-y-3">
-              <h3 className="text-lg font-semibold">Final Results:</h3>
+              <h3 className="text-lg font-semibold">Final Results for {gameSession.player_name}:</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{score}</p>
+                  <p className="text-2xl font-bold text-green-600">{gameSession.score}</p>
                   <p className="text-sm text-gray-600">Correct Answers</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">{position}%</p>
+                  <p className="text-2xl font-bold text-blue-600">{gameSession.position}%</p>
                   <p className="text-sm text-gray-600">Distance Covered</p>
                 </div>
               </div>
@@ -115,12 +257,12 @@ const QuizGame = ({ selectedCar, onRestart }) => {
                 <h2 className="text-2xl font-bold" style={{ color: selectedCar.color }}>
                   {selectedCar.name}
                 </h2>
-                <p className="text-gray-600">Racing to victory!</p>
+                <p className="text-gray-600">Driver: {gameSession.player_name}</p>
               </div>
             </div>
             <div className="text-right">
               <Badge variant="secondary" className="text-lg px-4 py-2">
-                Score: {score}/{questions.length}
+                Score: {gameSession.score}/{questions.length}
               </Badge>
             </div>
           </div>
@@ -152,7 +294,7 @@ const QuizGame = ({ selectedCar, onRestart }) => {
             <div className="mt-2">
               <Progress value={progressPercentage} className="h-2" />
               <p className="text-center text-white/80 text-sm mt-1">
-                {position}% to finish line
+                {gameSession.position}% to finish line
               </p>
             </div>
           </div>
@@ -163,21 +305,21 @@ const QuizGame = ({ selectedCar, onRestart }) => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <Badge variant="outline" className="text-lg">
-                Question {currentQuestion + 1} of {questions.length}
+                Question {currentQuestionIndex + 1} of {questions.length}
               </Badge>
               <div className="text-2xl">🧠</div>
             </div>
             <CardTitle className="text-2xl leading-relaxed">
-              {questions[currentQuestion].question}
+              {currentQuestion.question}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {questions[currentQuestion].options.map((option, index) => {
+              {currentQuestion.options.map((option, index) => {
                 let buttonClass = "h-16 text-lg font-semibold transition-all duration-200";
                 
                 if (showResult) {
-                  if (index === questions[currentQuestion].correct) {
+                  if (index === currentQuestion.correct) {
                     buttonClass += " bg-green-500 hover:bg-green-600 text-white";
                   } else if (index === selectedAnswer) {
                     buttonClass += " bg-red-500 hover:bg-red-600 text-white";
@@ -207,7 +349,7 @@ const QuizGame = ({ selectedCar, onRestart }) => {
                   {isCorrect ? '✅ Correct! Your car moves forward!' : '❌ Wrong answer! Better luck next time!'}
                 </div>
                 <div className="text-gray-600 mt-2">
-                  {isCorrect ? 'Great job! 🎉' : `The correct answer was: ${questions[currentQuestion].options[questions[currentQuestion].correct]}`}
+                  {isCorrect ? 'Great job! 🎉' : `The correct answer was: ${currentQuestion.options[currentQuestion.correct]}`}
                 </div>
               </div>
             )}

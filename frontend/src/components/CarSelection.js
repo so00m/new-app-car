@@ -1,9 +1,50 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { cars } from '../mock';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const CarSelection = ({ onSelectCar }) => {
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API}/cars`);
+        setCars(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching cars:', err);
+        setError('Failed to load cars. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCars();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
+        <div className="text-white text-2xl">Loading cars... 🏎️</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
+        <div className="text-white text-xl">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
       <div className="w-full max-w-6xl">
