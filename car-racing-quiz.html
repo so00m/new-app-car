@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Racing Quiz Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .welcome-screen {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .car-selection-screen {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 10px;
+        }
+
+        .quiz-screen {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 10px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .car-emojis {
+            font-size: 3rem;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .car-emoji {
+            animation: bounce 2s infinite;
+        }
+
+        .car-emoji:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .car-emoji:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            min-height: 50px;
+            touch-action: manipulation;
+        }
+
+        .btn:hover, .btn:active {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-large {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.3rem;
+            margin: 10px 0;
+        }
+
+        .car-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .car-card {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            touch-action: manipulation;
+        }
+
+        .car-card:hover, .car-card:active {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .car-card .car-emoji {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .car-card .car-name {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .car-card .car-description {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .score-badge {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .race-track {
+            background: #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .track-labels {
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .track-road {
+            background: #555;
+            height: 40px;
+            border-radius: 20px;
+            position: relative;
+            border: 2px solid white;
+            overflow: hidden;
+        }
+
+        .track-markings {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 18px,
+                rgba(255, 255, 255, 0.3) 18px,
+                rgba(255, 255, 255, 0.3) 20px
+            );
+        }
+
+        .car-position {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.8rem;
+            transition: left 1s ease-out;
+            z-index: 10;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 1s ease-out;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            color: white;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .question-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .question-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .answer-btn {
+            background: white;
+            border: 2px solid #ddd;
+            color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            touch-action: manipulation;
+        }
+
+        .answer-btn:hover, .answer-btn:active {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-1px);
+        }
+
+        .answer-btn.correct {
+            background: #4ade80;
+            border-color: #22c55e;
+            color: white;
+        }
+
+        .answer-btn.incorrect {
+            background: #f87171;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        .answer-btn.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .result-message.correct {
+            background: #4ade80;
+            color: white;
+        }
+
+        .result-message.incorrect {
+            background: #f87171;
+            color: white;
+        }
+
+        .game-over-screen {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+        }
+
+        .trophy {
+            font-size: 5rem;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .final-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 1.1rem;
+        }
+
+        .name-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            width: 100%;
+            margin: 15px 0;
+            backdrop-filter: blur(5px);
+        }
+
+        .name-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .instruction-item {
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+                border-radius: 0;
+                margin: 0;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .car-emojis {
+                font-size: 2.5rem;
+            }
+            
+            .btn {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        .btn, .answer-btn, .car-card {
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Ensure buttons are large enough for touch */
+        .btn, .answer-btn {
+            min-height: 44px;
+            min-width: 44px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div class="screen welcome-screen active" id="welcomeScreen">
+            <div class="car-emojis">
+                <span class="car-emoji">🏎️</span>
+                <span class="car-emoji">🏁</span>
+                <span class="car-emoji">🚗</span>
+            </div>
+            <h1 class="title">Car Racing Quiz</h1>
+            <p class="subtitle">Test your car knowledge and race to the finish line!</p>
+            
+            <div class="instructions">
+                <h3>How to Play:</h3>
+                <div class="instruction-item">🚗 Choose your racing car</div>
+                <div class="instruction-item">❓ Answer car-related questions</div>
+                <div class="instruction-item">🏃‍♂️ Move forward for each correct answer</div>
+                <div class="instruction-item">🏆 First to reach the finish line wins!</div>
+            </div>
+            
+            <input type="text" class="name-input" id="playerName" placeholder="Enter your name..." maxlength="20">
+            <button class="btn btn-large" onclick="startGame()">🏁 Start Racing! 🏁</button>
+        </div>
+
+        <!-- Car Selection Screen -->
+        <div class="screen car-selection-screen" id="carSelectionScreen">
+            <h1 class="title">Choose Your Car</h1>
+            <p class="subtitle">Select the car that will take you to victory!</p>
+            
+            <div class="car-grid" id="carGrid">
+                <!-- Cars will be populated by JavaScript -->
+            </div>
+            
+            <p style="opacity: 0.8; margin-top: 20px;">
+                💡 Tip: Each car has the same speed - choose your favorite!
+            </p>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div class="screen quiz-screen" id="quizScreen">
+            <div class="header">
+                <div class="player-info">
+                    <div>
+                        <span id="carEmoji" style="font-size: 2rem;">🏎️</span>
+                        <span id="carName" style="font-weight: bold; margin-left: 5px;">Car Name</span>
+                    </div>
+                    <div class="score-badge">
+                        Score: <span id="score">0</span>/<span id="totalQuestions">10</span>
+                    </div>
+                </div>
+                
+                <div class="race-track">
+                    <div class="track-labels">
+                        <span>🏁 Start</span>
+                        <span>Finish 🏆</span>
+                    </div>
+                    <div class="track-road">
+                        <div class="track-markings"></div>
+                        <div class="car-position" id="carPosition" style="left: 0%;">🏎️</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressText">0</span>% to finish line
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="question-number">
+                        Question <span id="questionNumber">1</span>
+                    </div>
+                    <div style="font-size: 1.5rem;">🧠</div>
+                </div>
+                <div class="question-text" id="questionText">Loading question...</div>
+                <div class="answers-grid" id="answersGrid">
+                    <!-- Answers will be populated by JavaScript -->
+                </div>
+                <div class="result-message" id="resultMessage" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="screen game-over-screen" id="gameOverScreen">
+            <div class="trophy" id="trophyIcon">🏆</div>
+            <h1 class="title" id="gameOverTitle">You Won!</h1>
+            <p class="subtitle" id="gameOverSubtitle">Congratulations! You reached the finish line!</p>
+            
+            <div class="final-stats">
+                <h3>Final Results for <span id="finalPlayerName">Player</span>:</h3>
+                <div class="stat-row">
+                    <span>Correct Answers:</span>
+                    <span id="finalScore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Distance Covered:</span>
+                    <span id="finalDistance">0</span>%
+                </div>
+                <div class="stat-row">
+                    <span>Car:</span>
+                    <span id="finalCarName">Lightning Bolt</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn btn-large" onclick="restartGame()" style="flex: 1;">🔄 Play Again</button>
+                <button class="btn btn-large" onclick="goToMenu()" style="flex: 1;">🏠 Main Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game data
+        const cars = [
+            {
+                id: 1,
+                name: "Lightning Bolt",
+                color: "#ff4444",
+                emoji: "🏎️",
+                description: "The fastest car in the race!"
+            },
+            {
+                id: 2,
+                name: "Thunder Strike",
+                color: "#4444ff",
+                emoji: "🚗",
+                description: "Built for speed and precision!"
+            },
+            {
+                id: 3,
+                name: "Wind Rider",
+                color: "#44ff44",
+                emoji: "🚙",
+                description: "Aerodynamic and agile!"
+            }
+        ];
+
+        const questions = [
+            {
+                question: "Which car manufacturer produces the Mustang?",
+                options: ["Ford", "Chevrolet", "Dodge", "Toyota"],
+                correct: 0
+            },
+            {
+                question: "What does 'MPH' stand for?",
+                options: ["Miles Per Hour", "Meters Per Hour", "Minutes Per Hour", "Miles Per Hectare"],
+                correct: 0
+            },
+            {
+                question: "Which company makes the Prius?",
+                options: ["Honda", "Toyota", "Nissan", "Hyundai"],
+                correct: 1
+            },
+            {
+                question: "What is the top speed of a Bugatti Chiron?",
+                options: ["250 mph", "304 mph", "280 mph", "320 mph"],
+                correct: 1
+            },
+            {
+                question: "Which car is known as the 'Ultimate Driving Machine'?",
+                options: ["Mercedes", "BMW", "Audi", "Porsche"],
+                correct: 1
+            },
+            {
+                question: "What year was the first Ferrari produced?",
+                options: ["1940", "1947", "1935", "1952"],
+                correct: 1
+            },
+            {
+                question: "Which car brand has a prancing horse logo?",
+                options: ["Lamborghini", "Ferrari", "McLaren", "Bugatti"],
+                correct: 1
+            },
+            {
+                question: "What does 'SUV' stand for?",
+                options: ["Super Urban Vehicle", "Sport Utility Vehicle", "Speed Up Vehicle", "Standard Urban Vehicle"],
+                correct: 1
+            },
+            {
+                question: "Which car manufacturer is known for the 911 model?",
+                options: ["BMW", "Mercedes", "Audi", "Porsche"],
+                correct: 3
+            },
+            {
+                question: "What is the fastest production car in the world?",
+                options: ["Bugatti Chiron", "Koenigsegg Jesko", "McLaren Speedtail", "Hennessey Venom F5"],
+                correct: 1
+            }
+        ];
+
+        // Game state
+        let currentScreen = 'welcome';
+        let selectedCar = null;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let position = 0;
+        let gameQuestions = [];
+        let playerName = '';
+        let isAnswering = false;
+
+        // Initialize game
+        function initGame() {
+            loadCarGrid();
+            showScreen('welcome');
+        }
+
+        function showScreen(screenName) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenName + 'Screen').classList.add('active');
+            currentScreen = screenName;
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            playerName = nameInput.value.trim();
+            
+            if (!playerName) {
+                alert('Please enter your name to start the game!');
+                return;
+            }
+            
+            showScreen('carSelection');
+        }
+
+        function loadCarGrid() {
+            const carGrid = document.getElementById('carGrid');
+            carGrid.innerHTML = '';
+            
+            cars.forEach(car => {
+                const carCard = document.createElement('div');
+                carCard.className = 'car-card';
+                carCard.onclick = () => selectCar(car);
+                
+                carCard.innerHTML = `
+                    <div class="car-emoji">${car.emoji}</div>
+                    <div class="car-name" style="color: ${car.color};">${car.name}</div>
+                    <div class="car-description">${car.description}</div>
+                `;
+                
+                carGrid.appendChild(carCard);
+            });
+        }
+
+        function selectCar(car) {
+            selectedCar = car;
+            initQuiz();
+            showScreen('quiz');
+        }
+
+        function initQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            position = 0;
+            isAnswering = false;
+            
+            // Shuffle questions and take 10
+            gameQuestions = shuffleArray([...questions]).slice(0, 10);
+            
+            // Update UI
+            document.getElementById('carEmoji').textContent = selectedCar.emoji;
+            document.getElementById('carName').textContent = selectedCar.name;
+            document.getElementById('carPosition').textContent = selectedCar.emoji;
+            document.getElementById('score').textContent = score;
+            document.getElementById('totalQuestions').textContent = gameQuestions.length;
+            
+            loadQuestion();
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= gameQuestions.length) {
+                endGame();
+                return;
+            }
+            
+            const question = gameQuestions[currentQuestionIndex];
+            
+            document.getElementById('questionNumber').textContent = currentQuestionIndex + 1;
+            document.getElementById('questionText').textContent = question.question;
+            
+            const answersGrid = document.getElementById('answersGrid');
+            answersGrid.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'answer-btn';
+                button.textContent = option;
+                button.onclick = () => selectAnswer(index);
+                answersGrid.appendChild(button);
+            });
+            
+            document.getElementById('resultMessage').style.display = 'none';
+            isAnswering = false;
+        }
+
+        function selectAnswer(selectedIndex) {
+            if (isAnswering) return;
+            
+            isAnswering = true;
+            const question = gameQuestions[currentQuestionIndex];
+            const isCorrect = selectedIndex === question.correct;
+            
+            // Update answer buttons
+            const answerButtons = document.querySelectorAll('.answer-btn');
+            answerButtons.forEach((button, index) => {
+                button.classList.add('disabled');
+                if (index === question.correct) {
+                    button.classList.add('correct');
+                } else if (index === selectedIndex && !isCorrect) {
+                    button.classList.add('incorrect');
+                }
+            });
+            
+            // Show result message
+            const resultMessage = document.getElementById('resultMessage');
+            resultMessage.style.display = 'block';
+            
+            if (isCorrect) {
+                score++;
+                position = Math.min(position + 10, 100);
+                resultMessage.className = 'result-message correct';
+                resultMessage.textContent = '✅ Correct! Your car moves forward!';
+            } else {
+                resultMessage.className = 'result-message incorrect';
+                resultMessage.textContent = `❌ Wrong! The correct answer was: ${question.options[question.correct]}`;
+            }
+            
+            // Update score and progress
+            document.getElementById('score').textContent = score;
+            updateProgress();
+            
+            // Move to next question after delay
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+            }, 2500);
+        }
+
+        function updateProgress() {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const carPosition = document.getElementById('carPosition');
+            
+            progressFill.style.width = position + '%';
+            progressText.textContent = position;
+            carPosition.style.left = Math.max(position - 2, 0) + '%';
+        }
+
+        function endGame() {
+            const isWinner = position >= 100;
+            
+            document.getElementById('trophyIcon').textContent = isWinner ? '🏆' : '🏁';
+            document.getElementById('gameOverTitle').textContent = isWinner ? '🎉 You Won! 🎉' : 'Race Complete!';
+            document.getElementById('gameOverSubtitle').textContent = isWinner ? 
+                'Congratulations! You reached the finish line!' : 
+                'Good effort! Try again to win!';
+            
+            document.getElementById('finalPlayerName').textContent = playerName;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalDistance').textContent = position;
+            document.getElementById('finalCarName').textContent = selectedCar.name;
+            
+            showScreen('gameOver');
+        }
+
+        function restartGame() {
+            if (selectedCar) {
+                initQuiz();
+                showScreen('quiz');
+            } else {
+                showScreen('carSelection');
+            }
+        }
+
+        function goToMenu() {
+            selectedCar = null;
+            document.getElementById('playerName').value = '';
+            playerName = '';
+            showScreen('welcome');
+        }
+
+        // Initialize game when page loads
+        window.onload = initGame;
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html>
